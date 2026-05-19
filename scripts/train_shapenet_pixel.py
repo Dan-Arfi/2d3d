@@ -36,6 +36,7 @@ def save_checkpoint(path: Path, model, optimizer, epoch: int, best_val: float, c
 
 
 @torch.no_grad()
+# שלב 6 - בדיקה על דאטא לא מאומן 
 def evaluate(model, loader, device, pos_weight):
     model.eval()
     total, n = 0.0, 0
@@ -78,7 +79,7 @@ def main():
 
     device = resolve_device(args.device)
     print(f"[INFO] device={device}")
-
+    # שלב 1 - הכנת הדאטא 
     train_ds = ShapeNetR2N2Dataset(
         root=args.data_root, split="train",
         category=args.category, n_views=args.n_views, n_query=args.n_query,
@@ -150,9 +151,13 @@ def main():
             occ_labels = batch["occ_labels"].to(device)
 
             optimizer.zero_grad(set_to_none=True)
+            # שלב 2
             logits = model(images, masks, K, T_w2c, occ_points)
+            # שלב 3
             loss   = F.binary_cross_entropy_with_logits(logits, occ_labels, pos_weight=pos_weight)
+            # שלב 4
             loss.backward()
+            # שלב 5 (gradient descent)
             optimizer.step()
 
             total += loss.item() * images.shape[0]
@@ -172,7 +177,7 @@ def main():
             f"val_loss={val_loss:.5f} time={sec:.1f}s",
             flush=True,
         )
-
+        # שמירת המשקלים שנתנו את התוצאה הטובה ביותר
         save_checkpoint(out_dir / "latest.pt", model, optimizer, epoch, best_val, config)
         if val_loss < best_val:
             best_val = val_loss

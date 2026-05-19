@@ -1,0 +1,7 @@
+data_shapenet/
+__pycache__/
+*.pyc
+.DS_Store
+.env
+*.db
+.venv/

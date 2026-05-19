@@ -385,13 +385,13 @@ def run_inference(
     with torch.no_grad():
         for ci, i in enumerate(range(0, len(grid), chunk_size), start=1):
             q = torch.from_numpy(grid[i : i + chunk_size]).unsqueeze(0)
-            probs.append(torch.sigmoid(_model(imgs_t, masks_t, k_t, t_t, q)).squeeze(0).cpu().numpy())
+            probs.append(torch.sigmoid(_model(imgs_t, masks_t, k_t, t_t, q)).squeeze(0).cpu().numpy()) # קריאה של המודל
             pct = 40 + int(ci / n_chunks * 45)
             _progress(min(pct, 85), f"inference chunks {ci}/{n_chunks}")
     probs = np.concatenate(probs)
 
     _progress(88, "post-processing predictions")
-    vox = read_binvox(VOX_DIR / model_id / "model.binvox")
+    vox = read_binvox(VOX_DIR / model_id / "model.binvox") 
     gt_count = int(vox.sum()) * (resolution // 32) ** 3
     n_keep = max(100, int(gt_count * threshold_mult))
     n_keep = min(n_keep, len(probs))
@@ -649,7 +649,7 @@ async def handle_message(ws: websockets.WebSocketServerProtocol, msg: dict[str, 
                 await send_progress(ws, message, pct)
 
         infer_task = asyncio.create_task(
-            asyncio.to_thread(run_inference, model_id, resolution, threshold_mult, _thread_progress)
+            asyncio.to_thread(run_inference, model_id, resolution, threshold_mult, _thread_progress) # הרצה של המודל
         )
         pump_task = asyncio.create_task(_pump_progress(infer_task))
         try:

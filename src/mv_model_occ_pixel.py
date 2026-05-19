@@ -54,7 +54,7 @@ class ResNet18Encoder(nn.Module):
         return f2, f3, f4
 
 
-def transform_world_to_camera(points_world: torch.Tensor, T_w2c: torch.Tensor) -> torch.Tensor:
+def transform_world_to_camera(points_world: torch.Tensor, T_w2c: torch.Tensor) -> torch.Tensor: # שלב שני
     """
     המרה ממערכת צירי עולם למערכת צירי מצלמה.
 
@@ -107,7 +107,7 @@ def pixels_to_grid(uv: torch.Tensor, width: int, height: int) -> torch.Tensor:
     return torch.stack([gx, gy], dim=-1)
 
 # המודל הראשי של הפרויקט: עבור כל נקודה תלת מימד, נעזר ב12 תמנות, הדאטא שלהן ומשתמבש באנקודר resnet18 כדי להבין אם הנקודה נמצאת בתוך הדגם או לא
-class PixelAlignedOccupancyNet(nn.Module):
+class PixelAlignedOccupancyNet(nn.Module): # שלב ראשון
     def __init__(
         self,
         hidden_dim: int = 256,
@@ -144,7 +144,7 @@ class PixelAlignedOccupancyNet(nn.Module):
         # bias=0 -> sigmoid(0)=0.5 (אתחול ניטרלי ל-BCE).
         _out = nn.Linear(hidden_dim // 2, 1)
         nn.init.constant_(_out.bias, 0.0)
-        self.head = nn.Sequential(
+        self.head = nn.Sequential( # שלב שישי   
             nn.Linear(hidden_dim, hidden_dim),
             nn.ReLU(inplace=True),
             nn.Linear(hidden_dim, hidden_dim // 2),
@@ -277,18 +277,19 @@ class PixelAlignedOccupancyNet(nn.Module):
         uvn = grid_img                             # (B,V,N,2)
         z_cam = q_cam[..., 2:3].clamp(min=0.01)   # (B,V,N,1) עומק תלוי-מבט
 
-        view_feat = torch.cat([feat_s2, feat_s3, feat_s4, mask_s, valid_feat, uvn, z_cam], dim=-1)
+        view_feat = torch.cat([feat_s2, feat_s3, feat_s4, mask_s, valid_feat, uvn, z_cam], dim=-1) # שלב שלישי
         # ממד כולל: feature_multi_scale + מסכה + תקפות + uv + עומק.
 
-        view_encoded = self.point_view_mlp(view_feat)              # (B,V,N,H)
+        view_encoded = self.point_view_mlp(view_feat)              # (B,V,N,H) # שלב רביעי
 
+        # שלב חמישי:
         # --- מיזוג רב-מבט לפי משקלי ביטחון ---
-        conf_logits = self.view_confidence(view_encoded).squeeze(-1)  # (B,V,N)
+        conf_logits = self.view_confidence(view_encoded).squeeze(-1)  # (B,V,N) 
         conf_logits = torch.where(valid, conf_logits, torch.full_like(conf_logits, -1e4))
         attn = torch.softmax(conf_logits, dim=1)
         attn = attn * valid.float()
-        attn = attn / attn.sum(dim=1, keepdim=True).clamp_min(1e-6)
-        fused = (view_encoded * attn.unsqueeze(-1)).sum(dim=1)        # (B,N,H)
+        attn = attn / attn.sum(dim=1, keepdim=True).clamp_min(1e-6) # שלב שישי
+        fused = (view_encoded * attn.unsqueeze(-1)).sum(dim=1)        # (B,N,H) # שלב שישי
 
         # --- דקוד: רק פיצ'רים ויזואליים ממוזגים, בלי קיצורי דרך גאומטריים ---
         logits = self.head(fused).squeeze(-1)                         # (B,N)
