@@ -45,7 +45,7 @@ USERNAME_RE = re.compile(r"^[a-zA-Z0-9_.-]{3,32}$")
 
 RENDER_DIR = DATA_ROOT / "ShapeNetRendering" / CATEGORY
 VOX_DIR = DATA_ROOT / "ShapeNetVox32" / CATEGORY
-
+#  source .env && python server.py
 DEVICE = torch.device("cpu")
 _model: PixelAlignedOccupancyNet | None = None
 _ds_train: ShapeNetR2N2Dataset | None = None
